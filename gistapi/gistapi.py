@@ -23,10 +23,10 @@ def ping():
     """Provide a static response to a simple GET request."""
     return "pong"
 
-def error_to_dict(response):
+def error_to_dict(response = None):
     """Generates an error response dict given a response with status code != 200"""
     # covers 404 and 500 from gists API
-    if "message" in response:
+    if response and "message" in response:
         message = response["message"]
     else:
         message = "Unexpected error."
@@ -34,6 +34,13 @@ def error_to_dict(response):
         "status": "error",
         "message": message
     }
+
+def get_gist_body(gist_url):
+    """Retrieves the plain text body of a gist given a url"""
+    response = requests.get(gist_url)
+    response.raise_for_status()
+
+    return response.text
 
 def gists_for_user(username):
     """Provides the list of gist metadata for a given user.
@@ -57,9 +64,17 @@ def gists_for_user(username):
     # Let's raise an exception for status != 200, so we can catch it and be DRY
     response.raise_for_status()
 
+    # If we're here, we got a 200
+    gists = []
+    for gist in response.json():
+        gist_url = "https://gist.github.com/%s/%s" % (gist["owner"]["login"], gist["id"])
+        
+        for filename, gist_file in gist["files"].iteritems():
+            gists.append((gist_url, get_gist_body(gist_file["raw_url"])))
+    
     # BONUS: Paging? How does this work for users with tons of gists?
 
-    return response.json()
+    return gists
 
 
 @app.route("/api/v1/search", methods=['POST'])
@@ -78,7 +93,7 @@ def search():
     # BONUS: Validate the arguments?
     username = post_data['username']
     # For now assume pattern is valid
-    pattern = re.compile(post_data['pattern'])
+    pattern = post_data['pattern']
 
     result = {}
     # BONUS: Handle invalid users?
@@ -88,14 +103,20 @@ def search():
     except requests.RequestException, e:
         # Otherwise (RequestException encapsulates 
         #   Timeout, HTTPError and TooManyRedirects) we bail
-        return jsonify(error_to_dict(e.response.json()))
 
+        # NOTE: I'm assuming an always-200 API paradigm
+        #   so the response code is always 200, but the status fields
+        #   becomes 'error' w/ a message
+        return jsonify(error_to_dict(e.response.json()))
+    except:
+        return jsonify(error_to_dict())
+
+    compiled_pattern = re.compile(pattern)
     matches = []
-    for gist in gists:
+    for (gist_url, gist_body) in gists:
         # REQUIRED: Fetch each gist and check for the pattern
-        print gist
-        # if pattern.search(gist) != None:
-        #     matches.append(gist)
+        if compiled_pattern.search(gist_body) != None:
+            matches.append(gist_url)
         # BONUS: What about huge gists?
         # BONUS: Can we cache results in a datastore/db?
 
