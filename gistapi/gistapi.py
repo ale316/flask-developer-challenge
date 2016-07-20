@@ -9,6 +9,7 @@ endpoint to verify the server is up and responding and a search endpoint
 providing a search across all public Gists for a given Github account.
 """
 
+import re
 import requests
 from flask import Flask, jsonify, request
 
@@ -75,9 +76,9 @@ def search():
     """
     post_data = request.get_json()
     # BONUS: Validate the arguments?
-
     username = post_data['username']
-    pattern = post_data['pattern']
+    # For now assume pattern is valid
+    pattern = re.compile(post_data['pattern'])
 
     result = {}
     # BONUS: Handle invalid users?
@@ -85,20 +86,23 @@ def search():
     try:
         gists = gists_for_user(username)
     except requests.RequestException, e:
-        # Otherwise (RequestException encapsulates Timeout, HTTPError and TooManyRedirects)
-        #   we bail
+        # Otherwise (RequestException encapsulates 
+        #   Timeout, HTTPError and TooManyRedirects) we bail
         return jsonify(error_to_dict(e.response.json()))
 
+    matches = []
     for gist in gists:
         # REQUIRED: Fetch each gist and check for the pattern
+        print gist
+        # if pattern.search(gist) != None:
+        #     matches.append(gist)
         # BONUS: What about huge gists?
         # BONUS: Can we cache results in a datastore/db?
-        pass
 
     result['status'] = 'success'
     result['username'] = username
     result['pattern'] = pattern
-    result['matches'] = []
+    result['matches'] = matches
 
     return jsonify(result)
 

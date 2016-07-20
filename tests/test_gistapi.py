@@ -43,3 +43,14 @@ def test_search(client):
                      'matches': ['https://gist.github.com/justdionysus/6b2972aa971dd605f524']}
     assert result_dict == expected_dict
 
+def test_search_not_found(client):
+    """Start with a passing test."""
+    post_data = {'username': 'justdionysus_doesnt_exist_guys_sorry', 'pattern': 'TerbiumLabsChallenge_[0-9]+'}
+    rv = client.post('/api/v1/search', 
+                     data=json.dumps(post_data),
+                     headers={'content-type':'application/json'})
+    result_dict = json.loads(rv.data.decode('utf-8'))
+    expected_dict = {'status': 'error', 
+                     'message': 'Not Found'}
+    assert result_dict == expected_dict
+
