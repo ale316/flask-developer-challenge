@@ -1,2 +1,5 @@
+.cache/
+.tox/
 env/
+gistapi.egg-info/
 *.pyc
