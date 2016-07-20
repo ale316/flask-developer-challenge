@@ -22,6 +22,17 @@ def ping():
     """Provide a static response to a simple GET request."""
     return "pong"
 
+def error_to_dict(response):
+    """Generates an error response dict given a response with status code != 200"""
+    # covers 404 and 500 from gists API
+    if "message" in response:
+        message = response["message"]
+    else:
+        message = "Unexpected error."
+    return {
+        "status": "error",
+        "message": message
+    }
 
 def gists_for_user(username):
     """Provides the list of gist metadata for a given user.
@@ -39,8 +50,12 @@ def gists_for_user(username):
     """
     gists_url = 'https://api.github.com/users/{username}/gists'.format(
             username=username)
+
     response = requests.get(gists_url)
     # BONUS: What failures could happen?
+    # Let's raise an exception for status != 200, so we can catch it and be DRY
+    response.raise_for_status()
+
     # BONUS: Paging? How does this work for users with tons of gists?
 
     return response.json()
@@ -65,8 +80,14 @@ def search():
     pattern = post_data['pattern']
 
     result = {}
-    gists = gists_for_user(username)
     # BONUS: Handle invalid users?
+    #   We're returning a Not Found (straight from gists API)
+    try:
+        gists = gists_for_user(username)
+    except requests.RequestException, e:
+        # Otherwise (RequestException encapsulates Timeout, HTTPError and TooManyRedirects)
+        #   we bail
+        return jsonify(error_to_dict(e.response.json()))
 
     for gist in gists:
         # REQUIRED: Fetch each gist and check for the pattern
