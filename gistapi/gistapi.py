@@ -111,13 +111,19 @@ def search():
     except:
         return jsonify(error_to_dict())
 
-    compiled_pattern = re.compile(pattern)
     matches = []
+    compiled_pattern = re.compile(pattern)
     for (gist_url, gist_body) in gists:
         # REQUIRED: Fetch each gist and check for the pattern
         if compiled_pattern.search(gist_body) != None:
             matches.append(gist_url)
         # BONUS: What about huge gists?
+        #   Two options:
+        #   1. The `files` in the reponse has `truncated: True`
+        #         -> Taken care of by using the raw_url in `gists_for_user`
+        #   2. The individual gist file is > 10mb
+        #         -> a lot more painful, requires cloning the gist
+        
         # BONUS: Can we cache results in a datastore/db?
 
     result['status'] = 'success'
