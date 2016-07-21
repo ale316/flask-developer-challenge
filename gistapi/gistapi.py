@@ -42,7 +42,7 @@ def get_gist_body(gist_url):
 
     return response.text
 
-def gists_for_user(username):
+def gists_for_user(username, page_num = 1, results = []):
     """Provides the list of gist metadata for a given user.
 
     This abstracts the /users/:username/gist endpoint from the Github API.
@@ -56,8 +56,8 @@ def gists_for_user(username):
         The dict parsed from the json response from the Github API.  See
         the above URL for details of the expected structure.
     """
-    gists_url = 'https://api.github.com/users/{username}/gists'.format(
-            username=username)
+    gists_url = 'https://api.github.com/users/{username}/gists?page={page_num}'.format(
+            username=username, page_num=page_num)
 
     response = requests.get(gists_url)
     # BONUS: What failures could happen?
@@ -65,8 +65,10 @@ def gists_for_user(username):
     response.raise_for_status()
     
     # BONUS: Paging? How does this work for users with tons of gists?
-
-    return response.json()
+    if "next" in response.links:
+        return gists_for_user(username, page_num + 1, results + response.json())
+    else:
+        return results + response.json()
 
 
 @app.route("/api/v1/search", methods=['POST'])
@@ -100,7 +102,8 @@ def search():
         #   so the response code is always 200, but the status fields
         #   becomes 'error' w/ a message
         return jsonify(error_to_dict(e.response.json()))
-    except:
+    except Exception, e:
+        print e
         return jsonify(error_to_dict())
 
     matches = []
