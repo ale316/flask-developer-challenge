@@ -26,7 +26,9 @@ def ping():
 def error_to_dict(response = None):
     """Generates an error response dict given a response with status code != 200"""
     # covers 404 and 500 from gists API
-    if response and "message" in response:
+    if response and isinstance(response, basestring):
+        message = response
+    elif response and "message" in response:
         message = response["message"]
     else:
         message = "Unexpected error."
@@ -85,14 +87,22 @@ def search():
         indicating any failure conditions.
     """
     post_data = request.get_json()
-    # BONUS: Validate the arguments?
     username = post_data['username']
-    # For now assume pattern is valid
     pattern = post_data['pattern']
-
+    # BONUS: Validate the arguments?
+    #   Let's keep this simple (we could use a library in the future, but why now):
+    #       1. Check that the username is a string
+    if not isinstance(username, basestring):
+        return jsonify(error_to_dict("Username must be a string."))
+    #       2. Check that the regexp is valid
+    try:
+        compiled_pattern = re.compile(pattern)
+    except re.error:
+        return jsonify(error_to_dict("Pattern must be a valid regular expression."))
+    
     result = {}
     # BONUS: Handle invalid users?
-    #   We're returning a Not Found (straight from gists API)
+    #   We're returning a Not Found for invalid users (straight from gists API)
     try:
         gists = gists_for_user(username)
     except requests.RequestException, e:
@@ -108,16 +118,16 @@ def search():
         return jsonify(error_to_dict())
 
     matches = []
-    compiled_pattern = re.compile(pattern)
 
     # If we're here, we got a 200
+    # REQUIRED: Fetch each gist and check for the pattern
     for gist in gists:
         gist_url = "https://gist.github.com/%s/%s" % (gist["owner"]["login"], gist["id"])
         
         for filename, gist_file in gist["files"].iteritems():
             # BONUS: What about huge gists?
             #   Two options:
-            #   1. The `files` in the reponse has `truncated: True`
+            #   1. The `files` in the response has `truncated: True`
             #         -> Taken care of by using the raw_url
             #   2. The individual gist file is > 10mb
             #         -> a lot more painful, requires cloning the gist
@@ -129,7 +139,6 @@ def search():
             if compiled_pattern.search(gist_body) != None:
                 matches.append(gist_url)
     
-    # REQUIRED: Fetch each gist and check for the pattern
     
     # BONUS: Can we cache results in a datastore/db?
     #   Yes, we can query the API with only the records after a specific timestamp
