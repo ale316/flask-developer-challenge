@@ -11,7 +11,6 @@ providing a search across all public Gists for a given Github account.
 
 import re
 import requests
-import sqlite3
 from flask import Flask, jsonify, request
 
 
