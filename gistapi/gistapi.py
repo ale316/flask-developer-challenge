@@ -11,6 +11,7 @@ providing a search across all public Gists for a given Github account.
 
 import re
 import requests
+import sqlite3
 from flask import Flask, jsonify, request
 
 
@@ -100,7 +101,14 @@ def search():
     except re.error:
         return jsonify(error_to_dict("Pattern must be a valid regular expression."))
     
+    # BONUS: Can we cache results in a datastore/db?
+    #   Yes, ideally we would have a Redis instance that can hold a record of:
+    #       (timestamp, username, gist_body)
+    #   so we can search through that, and query the API asking only for items modified/inserted after
+    #   the timestamp (the endpoint takes a `since` parameter)
+    #   but I'm not going to implement it for time reasons.
     result = {}
+
     # BONUS: Handle invalid users?
     #   We're returning a Not Found for invalid users (straight from gists API)
     try:
@@ -140,11 +148,6 @@ def search():
                 matches.append(gist_url)
     
     
-    # BONUS: Can we cache results in a datastore/db?
-    #   Yes, we can query the API with only the records after a specific timestamp
-    #   so check through the gists we have saved and only retrieve the new ones
-    #   although I'm not sure if the endpoint would also return items modified after
-    #   the timestamp
 
     result['status'] = 'success'
     result['username'] = username
