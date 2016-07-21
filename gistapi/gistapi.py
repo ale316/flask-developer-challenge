@@ -66,6 +66,7 @@ def gists_for_user(username, page_num = 1, results = []):
     
     # BONUS: Paging? How does this work for users with tons of gists?
     if "next" in response.links:
+        # If we can keep going, we recurse on the next page and memoize
         return gists_for_user(username, page_num + 1, results + response.json())
     else:
         return results + response.json()
@@ -131,6 +132,10 @@ def search():
     # REQUIRED: Fetch each gist and check for the pattern
     
     # BONUS: Can we cache results in a datastore/db?
+    #   Yes, we can query the API with only the records after a specific timestamp
+    #   so check through the gists we have saved and only retrieve the new ones
+    #   although I'm not sure if the endpoint would also return items modified after
+    #   the timestamp
 
     result['status'] = 'success'
     result['username'] = username
