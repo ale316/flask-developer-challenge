@@ -63,18 +63,10 @@ def gists_for_user(username):
     # BONUS: What failures could happen?
     # Let's raise an exception for status != 200, so we can catch it and be DRY
     response.raise_for_status()
-
-    # If we're here, we got a 200
-    gists = []
-    for gist in response.json():
-        gist_url = "https://gist.github.com/%s/%s" % (gist["owner"]["login"], gist["id"])
-        
-        for filename, gist_file in gist["files"].iteritems():
-            gists.append((gist_url, get_gist_body(gist_file["raw_url"])))
     
     # BONUS: Paging? How does this work for users with tons of gists?
 
-    return gists
+    return response.json()
 
 
 @app.route("/api/v1/search", methods=['POST'])
@@ -113,18 +105,29 @@ def search():
 
     matches = []
     compiled_pattern = re.compile(pattern)
-    for (gist_url, gist_body) in gists:
-        # REQUIRED: Fetch each gist and check for the pattern
-        if compiled_pattern.search(gist_body) != None:
-            matches.append(gist_url)
-        # BONUS: What about huge gists?
-        #   Two options:
-        #   1. The `files` in the reponse has `truncated: True`
-        #         -> Taken care of by using the raw_url in `gists_for_user`
-        #   2. The individual gist file is > 10mb
-        #         -> a lot more painful, requires cloning the gist
+
+    # If we're here, we got a 200
+    for gist in gists:
+        gist_url = "https://gist.github.com/%s/%s" % (gist["owner"]["login"], gist["id"])
         
-        # BONUS: Can we cache results in a datastore/db?
+        for filename, gist_file in gist["files"].iteritems():
+            # BONUS: What about huge gists?
+            #   Two options:
+            #   1. The `files` in the reponse has `truncated: True`
+            #         -> Taken care of by using the raw_url
+            #   2. The individual gist file is > 10mb
+            #         -> a lot more painful, requires cloning the gist
+            try:
+                gist_body = get_gist_body(gist_file["raw_url"])
+            except:
+                return jsonify(error_to_dict())
+            
+            if compiled_pattern.search(gist_body) != None:
+                matches.append(gist_url)
+    
+    # REQUIRED: Fetch each gist and check for the pattern
+    
+    # BONUS: Can we cache results in a datastore/db?
 
     result['status'] = 'success'
     result['username'] = username
